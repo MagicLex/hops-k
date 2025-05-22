@@ -11,76 +11,74 @@ interface RootNodeProps {
 }
 
 const RootNode: React.FC<RootNodeProps> = ({ data }) => {
+  const usagePercent = (data.usedGPU / data.totalGPU) * 100;
+  
   return (
     <div 
-      className="bg-white border border-gray-300 rounded-sm shadow-sm p-4 min-w-52"
-      style={{ 
+      style={{
+        backgroundColor: 'white',
+        border: '1px solid #d1d5db',
+        borderRadius: '2px',
+        padding: '12px',
+        minWidth: '160px',
         height: data.height || 'auto',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between'
+        gap: '8px',
+        fontSize: '11px'
       }}
     >
-      <div className="text-center">
-        <div className="font-semibold text-sm text-gray-900 mb-2">{data.name}</div>
-        <div className="space-y-2">
-          {/* Main GPU stats */}
-          <div className="text-xs text-gray-500 space-y-1">
-            <div className="flex justify-between">
-              <span>Total:</span>
-              <span className="font-medium text-gray-900">{data.totalGPU} GPU</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Used:</span>
-              <span className="font-medium text-gray-900">{data.usedGPU} GPU</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Available:</span>
-              <span className="font-medium text-gray-700">{data.totalGPU - data.usedGPU} GPU</span>
-            </div>
-          </div>
-          
-          {/* Divider line */}
-          <div style={{ 
-            width: '100%', 
-            height: '1px', 
-            backgroundColor: '#d1d5db', 
-            margin: '12px 0 8px 0' 
+      <Handle type="source" position={Position.Bottom} style={{ background: '#6B7280' }} />
+      
+      {/* Header */}
+      <div style={{ fontWeight: '600', color: '#111827', textAlign: 'center', fontSize: '14px' }}>
+        {data.name}
+      </div>
+      
+      {/* Total GPU line */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ color: '#6b7280' }}>Total GPU:</span>
+        <span style={{ fontWeight: '600', color: '#111827', fontSize: '12px' }}>{data.totalGPU}</span>
+      </div>
+      
+      {/* Usage line with progress bar */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+          <span style={{ color: '#6b7280' }}>Used:</span>
+          <span style={{ fontWeight: '600', color: '#111827' }}>{data.usedGPU.toFixed(1)}</span>
+        </div>
+        <div style={{
+          width: '100%',
+          height: '8px',
+          backgroundColor: '#e5e7eb',
+          borderRadius: '1px',
+          border: '1px solid #9ca3af',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            width: `${usagePercent}%`,
+            height: '100%',
+            backgroundColor: '#16a34a',
+            borderRadius: '1px',
+            position: 'absolute',
+            top: '0',
+            left: '0'
           }}></div>
-          
-          {/* Utilization visualization */}
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-gray-500">Utilization</span>
-              <span className="font-semibold text-gray-900">{((data.usedGPU / data.totalGPU) * 100).toFixed(1)}%</span>
-            </div>
-            <div 
-              style={{ 
-                width: '100%',
-                height: '12px',
-                backgroundColor: '#e5e7eb',
-                borderRadius: '2px',
-                border: '1px solid #9ca3af',
-                position: 'relative',
-                overflow: 'hidden'
-              }}
-            >
-              <div 
-                style={{ 
-                  width: `${(data.usedGPU / data.totalGPU) * 100}%`,
-                  height: '100%',
-                  backgroundColor: '#16a34a',
-                  borderRadius: '1px',
-                  position: 'absolute',
-                  top: '0',
-                  left: '0'
-                }}
-              ></div>
-            </div>
-          </div>
         </div>
       </div>
-      <Handle type="source" position={Position.Bottom} style={{ background: '#6B7280' }} />
+      
+      {/* Utilization percentage */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        fontSize: '10px',
+        color: '#059669',
+        fontWeight: '500'
+      }}>
+        <span>{usagePercent.toFixed(1)}% utilized</span>
+      </div>
     </div>
   );
 };

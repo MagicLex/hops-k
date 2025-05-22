@@ -10,18 +10,28 @@ interface BusinessUnitNodeProps {
     percentage?: string;
     borrowedPercentage?: string;
     height?: number;
+    hasChildren?: boolean;
+    onCollapse?: () => void;
   };
 }
 
 const BusinessUnitNode: React.FC<BusinessUnitNodeProps> = ({ data }) => {
+  const totalGPU = data.allocatedGPU + (data.borrowedGPU || 0);
+  const usagePercent = Math.min((data.currentUsage / totalGPU) * 100, 100);
+  
   return (
     <div 
-      className="bg-white border border-gray-300 rounded-sm shadow-sm p-3 min-w-40"
-      style={{ 
+      style={{
+        backgroundColor: 'white',
+        border: '1px solid #d1d5db',
+        borderRadius: '2px',
+        padding: '12px',
+        minWidth: '160px',
         height: data.height || 'auto',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between'
+        gap: '8px',
+        fontSize: '11px'
       }}
     >
       <Handle type="target" position={Position.Top} style={{ background: '#6B7280' }} />
@@ -29,51 +39,93 @@ const BusinessUnitNode: React.FC<BusinessUnitNodeProps> = ({ data }) => {
       <Handle id="left-target" type="target" position={Position.Left} style={{ background: '#f59e0b', top: '50%' }} />
       <Handle id="right" type="source" position={Position.Right} style={{ background: '#f59e0b', top: '50%' }} />
       <Handle id="right-target" type="target" position={Position.Right} style={{ background: '#f59e0b', top: '50%' }} />
-      <div className="text-center">
-        <div className="font-semibold text-sm text-gray-900 mb-2">{data.name}</div>
-        <div className="space-y-2">
-          <div className="bg-gray-50 px-2 py-1 rounded-sm border">
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-gray-500">GPU</span>
-              <span className="text-sm font-semibold text-gray-900">{data.allocatedGPU}</span>
-            </div>
-            {data.borrowedGPU && data.borrowedGPU > 0.1 && (
-              <div className="flex justify-between items-center mt-1">
-                <span className="text-xs" style={{ color: '#f59e0b' }}>Borrowed</span>
-                <span className="text-sm font-semibold" style={{ color: '#f59e0b' }}>+{data.borrowedGPU.toFixed(1)}</span>
-              </div>
-            )}
-          </div>
-          <div className="bg-gray-100 px-2 py-1 rounded-sm border">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-xs text-gray-500">Using</span>
-              <span className="text-sm font-semibold text-gray-900">{data.currentUsage.toFixed(1)}</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                style={{ 
-                  width: `${Math.min((data.currentUsage / (data.allocatedGPU + (data.borrowedGPU || 0))) * 100, 100)}%` 
-                }}
-              ></div>
-            </div>
-          </div>
-          {data.percentage && (
-            <div className="bg-blue-50 px-2 py-1 rounded-sm border border-blue-200">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-blue-600">% of parent</span>
-                <span className="text-xs font-bold text-blue-700">{data.percentage}</span>
-              </div>
-              {data.borrowedPercentage && data.borrowedGPU && data.borrowedGPU > 0.1 && (
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-xs" style={{ color: '#f59e0b' }}>+ borrowed</span>
-                  <span className="text-xs font-bold" style={{ color: '#f59e0b' }}>+{data.borrowedPercentage}</span>
-                </div>
-              )}
-            </div>
+      
+      {/* Header with collapse button */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: data.hasChildren ? 'space-between' : 'center', 
+        alignItems: 'center',
+        gap: '4px'
+      }}>
+        <div style={{ fontWeight: '600', color: '#1e40af', fontSize: '12px', textAlign: 'center', flex: 1 }}>
+          {data.name}
+        </div>
+        {data.hasChildren && data.onCollapse && (
+          <button
+            onClick={data.onCollapse}
+            style={{
+              border: '1px solid #3b82f6',
+              borderRadius: '2px',
+              backgroundColor: 'white',
+              padding: '1px 4px',
+              fontSize: '10px',
+              color: '#1e40af',
+              cursor: 'pointer',
+              fontWeight: '600',
+              minWidth: '16px'
+            }}
+          >
+            -
+          </button>
+        )}
+      </div>
+      
+      {/* GPU allocation line */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ color: '#6b7280' }}>GPU:</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontWeight: '600', color: '#1e40af' }}>{data.allocatedGPU}</span>
+          {data.borrowedGPU && data.borrowedGPU > 0.1 && (
+            <span style={{ color: '#f59e0b', fontWeight: '600' }}>+{data.borrowedGPU.toFixed(1)}</span>
           )}
         </div>
       </div>
+      
+      {/* Usage line with progress bar */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+          <span style={{ color: '#6b7280' }}>Using:</span>
+          <span style={{ fontWeight: '600', color: '#111827' }}>{data.currentUsage.toFixed(1)}</span>
+        </div>
+        <div style={{
+          width: '100%',
+          height: '8px',
+          backgroundColor: '#e5e7eb',
+          borderRadius: '1px',
+          border: '1px solid #9ca3af',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            width: `${usagePercent}%`,
+            height: '100%',
+            backgroundColor: '#16a34a',
+            borderRadius: '1px',
+            position: 'absolute',
+            top: '0',
+            left: '0'
+          }}></div>
+        </div>
+      </div>
+      
+      {/* Parent percentage - compact */}
+      {data.percentage && (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center',
+          fontSize: '10px',
+          color: '#1d4ed8',
+          fontWeight: '500',
+          gap: '4px'
+        }}>
+          <span>{data.percentage} of org</span>
+          {data.borrowedPercentage && data.borrowedGPU && data.borrowedGPU > 0.1 && (
+            <span style={{ color: '#f59e0b' }}>+{data.borrowedPercentage}</span>
+          )}
+        </div>
+      )}
+      
       <Handle id="bottom" type="source" position={Position.Bottom} style={{ background: '#6B7280' }} />
     </div>
   );

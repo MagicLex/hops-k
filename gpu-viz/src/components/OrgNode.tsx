@@ -7,40 +7,79 @@ interface OrgNodeProps {
     allocatedGPU: number;
     percentage?: string;
     height?: number;
+    hasChildren?: boolean;
+    onCollapse?: () => void;
   };
 }
 
 const OrgNode: React.FC<OrgNodeProps> = ({ data }) => {
   return (
     <div 
-      className="bg-white border border-gray-300 rounded-sm shadow-sm p-3 min-w-44"
-      style={{ 
+      style={{
+        backgroundColor: 'white',
+        border: '1px solid #d1d5db',
+        borderRadius: '2px',
+        padding: '12px',
+        minWidth: '160px',
         height: data.height || 'auto',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between'
+        gap: '8px',
+        fontSize: '11px'
       }}
     >
       <Handle type="target" position={Position.Top} style={{ background: '#6B7280' }} />
-      <div className="text-center">
-        <div className="font-semibold text-sm text-gray-900 mb-2">{data.name}</div>
-        <div className="space-y-2">
-          <div className="bg-gray-50 px-2 py-1 rounded-sm border">
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-gray-500">GPU</span>
-              <span className="text-sm font-semibold text-gray-900">{data.allocatedGPU}</span>
-            </div>
-          </div>
-          {data.percentage && (
-            <div className="bg-blue-50 px-2 py-1 rounded-sm border border-blue-200">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-blue-600">% of parent</span>
-                <span className="text-xs font-bold text-blue-700">{data.percentage}</span>
-              </div>
-            </div>
-          )}
+      
+      {/* Header with collapse button */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: data.hasChildren ? 'space-between' : 'center', 
+        alignItems: 'center',
+        gap: '4px'
+      }}>
+        <div style={{ fontWeight: '600', color: '#1e40af', fontSize: '12px', textAlign: 'center', flex: 1 }}>
+          {data.name}
         </div>
+        {data.hasChildren && data.onCollapse && (
+          <button
+            onClick={data.onCollapse}
+            style={{
+              border: '1px solid #3b82f6',
+              borderRadius: '2px',
+              backgroundColor: 'white',
+              padding: '1px 4px',
+              fontSize: '10px',
+              color: '#1e40af',
+              cursor: 'pointer',
+              fontWeight: '600',
+              minWidth: '16px'
+            }}
+          >
+            -
+          </button>
+        )}
       </div>
+      
+      {/* GPU allocation line */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ color: '#6b7280' }}>GPU:</span>
+        <span style={{ fontWeight: '600', color: '#1e40af' }}>{data.allocatedGPU}</span>
+      </div>
+      
+      {/* Parent percentage - compact */}
+      {data.percentage && (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center',
+          fontSize: '10px',
+          color: '#1d4ed8',
+          fontWeight: '500'
+        }}>
+          <span>{data.percentage} of cluster</span>
+        </div>
+      )}
+      
       <Handle type="source" position={Position.Bottom} style={{ background: '#6B7280' }} />
     </div>
   );

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactFlow, { Node, Edge, Background, Controls, EdgeProps } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -6,6 +6,7 @@ import RootNode from './components/RootNode';
 import OrgNode from './components/OrgNode';
 import BusinessUnitNode from './components/BusinessUnitNode';
 import ProjectNode from './components/ProjectNode';
+import GroupNode from './components/GroupNode';
 import BackgroundLayer from './components/BackgroundLayer';
 import { mockData } from './data';
 import { Organization, BusinessUnit, Project, BorrowingRelation } from './types';
@@ -126,6 +127,7 @@ const nodeTypes = {
   organization: OrgNode,
   businessUnit: BusinessUnitNode,
   project: ProjectNode,
+  group: GroupNode,
   background: BackgroundLayer,
 };
 
@@ -135,6 +137,11 @@ const edgeTypes = {
 };
 
 function App() {
+  const [collapsedGroups, setCollapsedGroups] = useState<{[key: string]: boolean}>({});
+  
+  const toggleGroup = (groupId: string) => {
+    setCollapsedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
+  };
   // Calculate total used GPU
   const totalUsedGPU = mockData.organizations.reduce((total: number, org: Organization) => {
     const orgTotal = org.projects.reduce((sum: number, proj: Project) => sum + proj.allocatedGPU, 0) +
@@ -220,10 +227,42 @@ function App() {
 
   // Calculate background width to cover all content
   const backgroundWidth = Math.max(projectsTotalWidth, Math.max(...orgPositions) - Math.min(...orgPositions) + CARD_WIDTH) + 160;
-  const backgroundStartX = (viewportWidth / 2) - (backgroundWidth / 2);
+  const backgroundStartX = (viewportWidth / 2) - (backgroundWidth / 2) - 100; // Offset backgrounds to the left
+  
+  // Calculate stats for each layer
+  const orgCount = mockData.organizations.length;
+  const orgTotalGPU = mockData.organizations.reduce((sum, org) => sum + org.allocatedGPU, 0);
+  const orgUsedGPU = mockData.organizations.reduce((sum, org) => {
+    const orgUsed = org.projects.reduce((projSum, proj) => projSum + proj.currentUsage, 0) +
+                   org.businessUnits.reduce((buSum, bu) => 
+                     buSum + bu.projects.reduce((projSum, proj) => projSum + proj.currentUsage, 0), 0);
+    return sum + orgUsed;
+  }, 0);
+  
+  const buCount = mockData.organizations.reduce((sum, org) => sum + org.businessUnits.length, 0);
+  const buTotalGPU = mockData.organizations.reduce((sum, org) => 
+    sum + org.businessUnits.reduce((buSum, bu) => buSum + bu.allocatedGPU, 0), 0);
+  const buUsedGPU = mockData.organizations.reduce((sum, org) => 
+    sum + org.businessUnits.reduce((buSum, bu) => 
+      buSum + bu.projects.reduce((projSum, proj) => projSum + proj.currentUsage, 0), 0), 0);
+  
+  const projectCount = totalProjects;
+  const projectTotalGPU = mockData.organizations.reduce((sum, org) => {
+    const orgProjects = org.projects.reduce((projSum, proj) => projSum + proj.allocatedGPU, 0) +
+                       org.businessUnits.reduce((buSum, bu) => 
+                         buSum + bu.projects.reduce((projSum, proj) => projSum + proj.allocatedGPU, 0), 0);
+    return sum + orgProjects;
+  }, 0);
+  const projectUsedGPU = mockData.organizations.reduce((sum, org) => {
+    const orgUsed = org.projects.reduce((projSum, proj) => projSum + proj.currentUsage, 0) +
+                   org.businessUnits.reduce((buSum, bu) => 
+                     buSum + bu.projects.reduce((projSum, proj) => projSum + proj.currentUsage, 0), 0);
+    return sum + orgUsed;
+  }, 0);
 
   // Add background layers for each row with consistent spacing
   const LAYER_SPACING = SPACING_Y + 20; // Add extra spacing between layers
+  const BACKGROUND_GAP = 10; // Gap between background layers
   const backgroundLayers = [
     {
       id: 'bg-root',
@@ -233,43 +272,67 @@ function App() {
         label: 'Root Cluster',
         width: backgroundWidth,
         height: 180,
-        color: '#f8fafc'
+        color: '#f8fafc',
+        stats: {
+          count: 1,
+          totalGPU: mockData.totalGPU,
+          usedGPU: totalUsedGPU,
+          description: 'Physical GPU cluster providing compute resources'
+        }
       },
       zIndex: -4
     },
     {
       id: 'bg-orgs',
       type: 'background', 
-      position: { x: backgroundStartX, y: 30 + LAYER_SPACING },
+      position: { x: backgroundStartX, y: 30 + LAYER_SPACING + BACKGROUND_GAP },
       data: {
         label: 'Organizations',
         width: backgroundWidth,
         height: 180,
-        color: '#f1f5f9'
+        color: '#f1f5f9',
+        stats: {
+          count: orgCount,
+          totalGPU: orgTotalGPU,
+          usedGPU: orgUsedGPU,
+          description: 'Organizational divisions with quota allocations'
+        }
       },
       zIndex: -3
     },
     {
       id: 'bg-business-units',
       type: 'background',
-      position: { x: backgroundStartX, y: 30 + LAYER_SPACING * 2 },
+      position: { x: backgroundStartX, y: 30 + (LAYER_SPACING + BACKGROUND_GAP) * 2 },
       data: {
         label: 'Business Units',
         width: backgroundWidth,
         height: 180,
-        color: '#f1f5f9'
+        color: '#f1f5f9',
+        stats: {
+          count: buCount,
+          totalGPU: buTotalGPU,
+          usedGPU: buUsedGPU,
+          description: 'Functional teams managing project resources'
+        }
       },
       zIndex: -2
     },
     {
       id: 'bg-projects',
       type: 'background',
-      position: { x: backgroundStartX, y: 30 + LAYER_SPACING * 3 },
+      position: { x: backgroundStartX, y: 30 + (LAYER_SPACING + BACKGROUND_GAP) * 3 },
       data: {
         label: 'Projects',
         width: backgroundWidth,
         height: 180,
-        color: '#ecfdf5'
+        color: '#ecfdf5',
+        stats: {
+          count: projectCount,
+          totalGPU: projectTotalGPU,
+          usedGPU: projectUsedGPU,
+          description: 'Individual workloads consuming GPU resources'
+        }
       },
       zIndex: -1
     }
@@ -282,20 +345,21 @@ function App() {
   nodes.push({
     id: mockData.id,
     type: 'root',
-    position: { x: rootX, y: 40 },
+    position: { x: rootX, y: 50 },
     data: {
       name: mockData.name,
       totalGPU: mockData.totalGPU,
       usedGPU: totalUsedGPU,
-      height: 160 // Match background height minus padding
+      height: 150 // Fit within background height
     }
   });
 
   // Organizations row
   mockData.organizations.forEach((org: Organization, orgIndex: number) => {
     const orgX = orgPositions[orgIndex];
-    const orgY = 40 + LAYER_SPACING;
+    const orgY = 50 + LAYER_SPACING + BACKGROUND_GAP;
     const orgPercentage = ((org.allocatedGPU / mockData.totalGPU) * 100).toFixed(1);
+    const hasChildren = org.businessUnits.length > 0 || org.projects.length > 0;
 
     nodes.push({
       id: org.id,
@@ -305,7 +369,9 @@ function App() {
         name: org.name,
         allocatedGPU: org.allocatedGPU,
         percentage: `${orgPercentage}%`,
-        height: 160
+        height: 150,
+        hasChildren,
+        onCollapse: hasChildren ? () => toggleGroup(org.id) : undefined
       }
     });
 
@@ -317,13 +383,50 @@ function App() {
     });
   });
 
-  // Business Units row (positioned above their projects)
+  // Business Units row (positioned above their projects) - only if org not collapsed
   mockData.organizations.forEach((org: Organization, orgIndex: number) => {
+    if (collapsedGroups[org.id]) {
+      // Show collapsed group instead of individual business units (only if org has business units)
+      if (org.businessUnits.length > 0) {
+        const orgX = orgPositions[orgIndex];
+        const groupY = 50 + (LAYER_SPACING + BACKGROUND_GAP) * 2;
+        
+        const totalBUGPU = org.businessUnits.reduce((sum, bu) => sum + bu.allocatedGPU, 0);
+        const totalBUUsage = org.businessUnits.reduce((sum, bu) => 
+          sum + bu.projects.reduce((projSum, proj) => projSum + proj.currentUsage, 0), 0);
+        
+        nodes.push({
+          id: `${org.id}-collapsed`,
+          type: 'group',
+          position: { x: orgX, y: groupY },
+          data: {
+            name: `${org.name} Business Units`,
+            count: org.businessUnits.length,
+            totalGPU: totalBUGPU,
+            currentUsage: totalBUUsage,
+            height: 150,
+            type: 'businessUnits' as const,
+            onExpand: () => toggleGroup(org.id)
+          }
+        });
+        
+        edges.push({
+          id: `${org.id}-${org.id}-collapsed`,
+          source: org.id,
+          target: `${org.id}-collapsed`,
+          type: 'customStep'
+        });
+      }
+      
+      return; // Skip individual business units
+    }
+    
     org.businessUnits.forEach((bu: BusinessUnit) => {
       if (buPositions[bu.id] !== undefined) {
         const buX = buPositions[bu.id];
-        const buY = 40 + LAYER_SPACING * 2;
+        const buY = 50 + (LAYER_SPACING + BACKGROUND_GAP) * 2;
         const buPercentage = ((bu.allocatedGPU / org.allocatedGPU) * 100).toFixed(1);
+        const hasChildren = bu.projects.length > 0;
         
         // Calculate borrowed GPU amount (only for borrowers, not lenders)
         let borrowedGPU = 0;
@@ -351,7 +454,9 @@ function App() {
           allocatedGPU: bu.allocatedGPU,
           currentUsage: buCurrentUsage,
           percentage: `${buPercentage}%`,
-          height: 160
+          height: 150,
+          hasChildren,
+          onCollapse: hasChildren ? () => toggleGroup(bu.id) : undefined
         };
 
         // Only add borrowed data if there's actual borrowing
@@ -405,96 +510,163 @@ function App() {
   });
 
   // Projects row - use pre-calculated positions
-  const projectY = 40 + LAYER_SPACING * 3;
+  const projectY = 50 + (LAYER_SPACING + BACKGROUND_GAP) * 3;
   
   mockData.organizations.forEach((org: Organization, orgIndex: number) => {
-    // Direct projects under organization
-    org.projects.forEach((project: Project) => {
-      const projX = projectPositions[project.id];
-      const projectPercentage = ((project.allocatedGPU / org.allocatedGPU) * 100).toFixed(1);
-
-      nodes.push({
-        id: project.id,
-        type: 'project',
-        position: { x: projX, y: projectY },
-        data: {
-          name: project.name,
-          allocatedGPU: project.allocatedGPU,
-          currentUsage: project.currentUsage,
-          percentage: `${projectPercentage}%`,
-          height: 160
-        }
-      });
-
-      edges.push({
-        id: `${org.id}-${project.id}`,
-        source: org.id,
-        target: project.id,
-        type: 'customStep'
-      });
-    });
-
-    // Projects from business units
-    org.businessUnits.forEach((bu: BusinessUnit) => {
-      // Check if this business unit is borrowing GPU (not lending)
-      let buBorrowedGPU = 0;
-      if (org.borrowingRelations) {
-        org.borrowingRelations.forEach((borrowing) => {
-          if (borrowing.toId === bu.id) {
-            const lenderBU = org.businessUnits.find(lender => lender.id === borrowing.fromId);
-            if (lenderBU) {
-              buBorrowedGPU = (borrowing.borrowedAmount / 100) * lenderBU.allocatedGPU;
-            }
-          }
-          // Don't calculate for lending business units (fromId === bu.id)
-        });
-      }
-
-      const buTotalGPU = bu.allocatedGPU + buBorrowedGPU;
-
-      bu.projects.forEach((project: Project) => {
+    // Direct projects under organization - only if org is not collapsed
+    if (!collapsedGroups[org.id]) {
+      org.projects.forEach((project: Project) => {
         const projX = projectPositions[project.id];
-        const projectPercentage = ((project.allocatedGPU / bu.allocatedGPU) * 100).toFixed(1);
-        
-        // Calculate borrowed GPU usage for this project (proportional to its allocation)
-        let projectBorrowedGPU = 0;
-        let projectBorrowedPercentage = '';
-        if (buBorrowedGPU > 0) {
-          projectBorrowedGPU = (project.allocatedGPU / bu.allocatedGPU) * buBorrowedGPU;
-          const borrowedPercentageNum = ((projectBorrowedGPU / buTotalGPU) * 100);
-          projectBorrowedPercentage = `${borrowedPercentageNum.toFixed(1)}%`;
-        }
-
-        const projectData: any = {
-          name: project.name,
-          allocatedGPU: project.allocatedGPU,
-          currentUsage: project.currentUsage,
-          percentage: `${projectPercentage}%`,
-          height: 160
-        };
-
-        // Only add borrowed data if there's actual borrowing
-        if (projectBorrowedGPU > 0.1) {
-          projectData.borrowedGPU = projectBorrowedGPU;
-          projectData.borrowedPercentage = projectBorrowedPercentage;
-        }
+        const projectPercentage = ((project.allocatedGPU / org.allocatedGPU) * 100).toFixed(1);
 
         nodes.push({
           id: project.id,
           type: 'project',
           position: { x: projX, y: projectY },
-          data: projectData
+          data: {
+            name: project.name,
+            allocatedGPU: project.allocatedGPU,
+            currentUsage: project.currentUsage,
+            percentage: `${projectPercentage}%`,
+            height: 150
+          }
         });
 
         edges.push({
-          id: `${bu.id}-${project.id}`,
-          source: bu.id,
+          id: `${org.id}-${project.id}`,
+          source: org.id,
           target: project.id,
-          sourceHandle: 'bottom', // Use bottom handle for hierarchical connections
           type: 'customStep'
         });
       });
-    });
+    }
+
+    // Projects from business units - handle collapsed states
+    if (collapsedGroups[org.id]) {
+      // If org is collapsed, show projects grouped under the collapsed org node
+      const allOrgProjects = [...org.projects, ...org.businessUnits.flatMap(bu => bu.projects)];
+      if (allOrgProjects.length > 0) {
+        const firstProjectX = projectPositions[allOrgProjects[0].id];
+        const totalProjectGPU = allOrgProjects.reduce((sum, proj) => sum + proj.allocatedGPU, 0);
+        const totalProjectUsage = allOrgProjects.reduce((sum, proj) => sum + proj.currentUsage, 0);
+        
+        nodes.push({
+          id: `${org.id}-projects-collapsed`,
+          type: 'group',
+          position: { x: firstProjectX, y: projectY },
+          data: {
+            name: `${org.name} Projects`,
+            count: allOrgProjects.length,
+            totalGPU: totalProjectGPU,
+            currentUsage: totalProjectUsage,
+            height: 150,
+            type: 'projects' as const,
+            onExpand: () => toggleGroup(org.id)
+          }
+        });
+        
+        // Connect to the right parent - either collapsed BU group or directly to org
+        const sourceId = org.businessUnits.length > 0 ? `${org.id}-collapsed` : org.id;
+        edges.push({
+          id: `${sourceId}-${org.id}-projects-collapsed`,
+          source: sourceId,
+          target: `${org.id}-projects-collapsed`,
+          type: 'customStep'
+        });
+      }
+    } else {
+      // Show individual business unit projects
+      org.businessUnits.forEach((bu: BusinessUnit) => {
+        if (collapsedGroups[bu.id] && bu.projects.length > 0) {
+          // Show collapsed projects for this business unit
+          const firstProjectX = projectPositions[bu.projects[0].id];
+          const totalProjectGPU = bu.projects.reduce((sum, proj) => sum + proj.allocatedGPU, 0);
+          const totalProjectUsage = bu.projects.reduce((sum, proj) => sum + proj.currentUsage, 0);
+          
+          nodes.push({
+            id: `${bu.id}-projects-collapsed`,
+            type: 'group',
+            position: { x: firstProjectX, y: projectY },
+            data: {
+              name: `${bu.name} Projects`,
+              count: bu.projects.length,
+              totalGPU: totalProjectGPU,
+              currentUsage: totalProjectUsage,
+              height: 150,
+              type: 'projects' as const,
+              onExpand: () => toggleGroup(bu.id)
+            }
+          });
+          
+          edges.push({
+            id: `${bu.id}-${bu.id}-projects-collapsed`,
+            source: bu.id,
+            target: `${bu.id}-projects-collapsed`,
+            type: 'customStep'
+          });
+        } else {
+          // Show individual projects
+          // Check if this business unit is borrowing GPU (not lending)
+          let buBorrowedGPU = 0;
+          if (org.borrowingRelations) {
+            org.borrowingRelations.forEach((borrowing) => {
+              if (borrowing.toId === bu.id) {
+                const lenderBU = org.businessUnits.find(lender => lender.id === borrowing.fromId);
+                if (lenderBU) {
+                  buBorrowedGPU = (borrowing.borrowedAmount / 100) * lenderBU.allocatedGPU;
+                }
+              }
+              // Don't calculate for lending business units (fromId === bu.id)
+            });
+          }
+
+          const buTotalGPU = bu.allocatedGPU + buBorrowedGPU;
+
+          bu.projects.forEach((project: Project) => {
+            const projX = projectPositions[project.id];
+            const projectPercentage = ((project.allocatedGPU / bu.allocatedGPU) * 100).toFixed(1);
+            
+            // Calculate borrowed GPU usage for this project (proportional to its allocation)
+            let projectBorrowedGPU = 0;
+            let projectBorrowedPercentage = '';
+            if (buBorrowedGPU > 0) {
+              projectBorrowedGPU = (project.allocatedGPU / bu.allocatedGPU) * buBorrowedGPU;
+              const borrowedPercentageNum = ((projectBorrowedGPU / buTotalGPU) * 100);
+              projectBorrowedPercentage = `${borrowedPercentageNum.toFixed(1)}%`;
+            }
+
+            const projectData: any = {
+              name: project.name,
+              allocatedGPU: project.allocatedGPU,
+              currentUsage: project.currentUsage,
+              percentage: `${projectPercentage}%`,
+              height: 150
+            };
+
+            // Only add borrowed data if there's actual borrowing
+            if (projectBorrowedGPU > 0.1) {
+              projectData.borrowedGPU = projectBorrowedGPU;
+              projectData.borrowedPercentage = projectBorrowedPercentage;
+            }
+
+            nodes.push({
+              id: project.id,
+              type: 'project',
+              position: { x: projX, y: projectY },
+              data: projectData
+            });
+
+            edges.push({
+              id: `${bu.id}-${project.id}`,
+              source: bu.id,
+              target: project.id,
+              sourceHandle: 'bottom', // Use bottom handle for hierarchical connections
+              type: 'customStep'
+            });
+          });
+        }
+      });
+    }
   });
 
   return (

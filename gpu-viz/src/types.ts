@@ -3,6 +3,7 @@ export interface Project {
   name: string;
   allocatedGPU: number;
   currentUsage: number; // Actually used GPU (0 to allocatedGPU + borrowed)
+  parentId?: string; // Business unit or organization ID
 }
 
 export interface BusinessUnit {
@@ -10,6 +11,8 @@ export interface BusinessUnit {
   name: string;
   allocatedGPU: number;
   projects: Project[];
+  parentId?: string; // Organization ID
+  collapsed?: boolean;
 }
 
 export interface BorrowingRelation {
@@ -25,6 +28,7 @@ export interface Organization {
   businessUnits: BusinessUnit[];
   projects: Project[]; // Direct projects without business unit
   borrowingRelations?: BorrowingRelation[]; // GPU borrowing between business units
+  collapsed?: boolean;
 }
 
 export interface Root {
